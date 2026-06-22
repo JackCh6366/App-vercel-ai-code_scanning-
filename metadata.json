@@ -1,0 +1,6 @@
+{
+  "name": "Code Linter & Quality Dashboard",
+  "description": "一個專業級的程式碼品質檢測與 Prettier 美化整合式工具，支援 TypeScript/JavaScript/React 的 ESLint 分析與 AI 深度健檢。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
