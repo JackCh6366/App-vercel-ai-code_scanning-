@@ -18,19 +18,25 @@ async function fetchNvidiaChat(modelName: string, apiKey: string, systemInstruct
   
   const modelsToTry = [modelName];
   if (modelName === "nvidia/nv-embedcode-7b-v1") {
-    modelsToTry.push("nvidia/llama-3.1-nemotron-70b-instruct");
+    modelsToTry.push("meta/llama-3.3-70b-instruct");
   } else if (modelName === "nvidia/nemotron-3-ultra-550b-a55b") {
-    modelsToTry.push("nvidia/llama-3.1-nemotron-70b-instruct");
+    modelsToTry.push("meta/llama-3.3-70b-instruct");
   }
 
   let lastError: any = null;
 
   for (const model of modelsToTry) {
     const controller = new AbortController();
-    const timeoutMs = modelsToTry.length > 1 && model === modelsToTry[0] ? 7500 : 15000;
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const isLastModel = model === modelsToTry[modelsToTry.length - 1];
+    const timeoutMs = isLastModel ? 120000 : 8000;
+    const timeoutId = setTimeout(() => {
+      console.log(`[TIMEOUT TRIGGERED] Aborting model ${model} after ${timeoutMs}ms`);
+      controller.abort();
+    }, timeoutMs);
 
+    const startFetch = Date.now();
     try {
+      console.log(`[FETCH START] Calling model ${model} (timeoutMs: ${timeoutMs})`);
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -50,6 +56,7 @@ async function fetchNvidiaChat(modelName: string, apiKey: string, systemInstruct
       });
 
       clearTimeout(timeoutId);
+      console.log(`[FETCH SUCCESS] Model ${model} responded in ${Date.now() - startFetch}ms with status ${response.status}`);
 
       if (!response.ok) {
         const errText = await response.text();
@@ -65,7 +72,7 @@ async function fetchNvidiaChat(modelName: string, apiKey: string, systemInstruct
     } catch (err: any) {
       clearTimeout(timeoutId);
       lastError = err;
-      console.warn(`Model ${model} failed, error: ${err.message || err}. Trying next fallback if available.`);
+      console.warn(`[FETCH FAILED] Model ${model} failed after ${Date.now() - startFetch}ms, error: ${err.message || err}. Trying next fallback if available.`);
     }
   }
 
@@ -107,7 +114,8 @@ async function startServer() {
    - TypeScript 型別缺失或 any 濫用 (no-explicit-any, missing type annotations)
 3. 將發現的 ESLint 警告與錯誤列成清單，準確寫出該問題發生在原代碼的哪一行 (line) 和 哪一欄 (column)。
 4. 計算程式碼品質分數 (可用 0-100 評估)、圈複雜度 (complexity)、安全評級、可維護性指數，並提供重構與改善 suggestions。
-5. 所有回傳的診斷、說明、美化提示，文字請均使用 **繁體中文 (Traditional Chinese)**。`;
+5. 所有回傳的診斷、說明、美化提示，文字請均使用 **繁體中文 (Traditional Chinese)**。
+6. [重要效能要求]：請讓所有說明、錯誤描述、重構建議與整體評語保持「精簡、精確且簡短」（例如：每個錯誤說明不超過 20 字，整體評語不超過 50 字，每條建議不超過 30 字），以大幅加快 JSON 生成速度，避免超時。`;
 
     const userPrompt = `這是需要請你分析的程式碼：
 \`\`\`${language || "tsx"}
