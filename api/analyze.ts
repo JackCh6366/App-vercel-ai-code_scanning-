@@ -8,6 +8,65 @@ function cleanKey(key: string | undefined): string {
   return key.trim().replace(/^["']|["']$/g, "");
 }
 
+async function fetchNvidiaChat(modelName: string, apiKey: string, systemInstruction: string, enhancedUserPrompt: string, responseSchema: any): Promise<string> {
+  const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+  
+  const modelsToTry = [modelName];
+  if (modelName === "nvidia/nv-embedcode-7b-v1") {
+    modelsToTry.push("nvidia/llama-3.1-nemotron-70b-instruct");
+  } else if (modelName === "nvidia/nemotron-3-ultra-550b-a55b") {
+    modelsToTry.push("nvidia/llama-3.1-nemotron-70b-instruct");
+  }
+
+  let lastError: any = null;
+
+  for (const model of modelsToTry) {
+    const controller = new AbortController();
+    const timeoutMs = modelsToTry.length > 1 && model === modelsToTry[0] ? 7500 : 15000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: enhancedUserPrompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" }
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Nvidia/Meta API error for ${model}: ${response.status} ${errText}`);
+      }
+
+      const data = await response.json();
+      const resultText = data.choices?.[0]?.message?.content;
+      if (resultText) {
+        return resultText;
+      }
+      throw new Error(`Empty content returned for model ${model}`);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      console.warn(`Model ${model} failed, error: ${err.message || err}. Trying next fallback if available.`);
+    }
+  }
+
+  throw lastError || new Error("All models failed to return a response.");
+}
+
 const responseSchema = {
   type: "object",
   properties: {
@@ -170,37 +229,12 @@ ${code}
         return;
       }
 
-      const url = "https://integrate.api.nvidia.com/v1/chat/completions";
-      
       let enhancedUserPrompt = userPrompt;
       enhancedUserPrompt += `\n\n[IMPORTANT REQUIREMENT] You must output a JSON object adhering strictly to this schema:
 ${JSON.stringify(responseSchema, null, 2)}
 Ensure the response contains no markdown wrapper or only valid JSON.`;
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: enhancedUserPrompt }
-          ],
-          temperature: 0.1,
-          response_format: { type: "json_object" }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Nvidia/Meta API error: ${response.status} ${errText}`);
-      }
-
-      const data = await response.json();
-      resultText = data.choices?.[0]?.message?.content;
+      resultText = await fetchNvidiaChat(modelName, apiKey, systemInstruction, enhancedUserPrompt, responseSchema);
     }
 
     if (!resultText) {
