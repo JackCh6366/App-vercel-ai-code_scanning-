@@ -27,6 +27,7 @@ export default function App() {
   // 程式碼與編輯狀態
   const [code, setCode] = useState<string>(TEMPLATES[0].code);
   const [language, setLanguage] = useState<string>("tsx");
+  const [provider, setProvider] = useState<string>("gemini");
   
   // Prettier & ESLint 設定
   const [prettierConfig, setPrettierConfig] = useState<PrettierConfig>({
@@ -65,12 +66,13 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/lint", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          provider,
           code,
           language,
           rules,
@@ -111,12 +113,13 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/lint", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          provider,
           code: codeToAnalyze,
           language,
           rules,
@@ -490,6 +493,8 @@ ${errorsMarkdown}
                 onAnalyze={handleAnalyze}
                 onLoadTemplate={handleLoadTemplate}
                 onAutoFixAll={handleAutoFixAll}
+                provider={provider}
+                setProvider={setProvider}
               />
             </div>
 
@@ -664,7 +669,12 @@ ${errorsMarkdown}
               <span>萬國碼 UTF-8</span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="opacity-90">技術核心: Gemini-3.5-Flash</span>
+              <span className="opacity-90">技術核心: {
+                provider === "gemini" ? "Gemini-3.1-Flash-Lite" :
+                provider === "nvidia-code" ? "NVIDIA nv-embedcode-7b" :
+                provider === "nvidia" ? "NVIDIA nemotron-3-ultra" :
+                "Meta llama-3.3-70b"
+              }</span>
               <span className="flex items-center gap-1.5 font-semibold">
                 <span className="w-1.5 h-1.5 bg-white rounded-full"></span> 
                 <span>實時程式碼品質守護中 (Live Monitoring)</span>

@@ -16,6 +16,8 @@ interface CodeEditorProps {
   onAnalyze: () => void;
   onLoadTemplate: (tmpl: CodeTemplate) => void;
   onAutoFixAll: () => void;
+  provider: string;
+  setProvider: (provider: string) => void;
 }
 
 export default function CodeEditor({
@@ -31,6 +33,8 @@ export default function CodeEditor({
   onAnalyze,
   onLoadTemplate,
   onAutoFixAll,
+  provider,
+  setProvider,
 }: CodeEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -198,6 +202,17 @@ export default function CodeEditor({
                 <option value="tsx">React (TSX)</option>
                 <option value="typescript">TypeScript</option>
                 <option value="javascript">JavaScript</option>
+              </select>
+
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="bg-slate-850 text-slate-300 border border-slate-700 px-2.5 py-1 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs cursor-pointer font-mono ml-2"
+              >
+                <option value="gemini">Google Gemini (gemini-3.1-flash-lite)</option>
+                <option value="nvidia-code">NVIDIA code (nv-embedcode-7b-v1)</option>
+                <option value="nvidia">NVIDIA (nemotron-3-ultra-550b-a55b)</option>
+                <option value="meta">Meta (llama-3.3-70b-instruct)</option>
               </select>
             </div>
             <div className="text-slate-500 font-mono">
